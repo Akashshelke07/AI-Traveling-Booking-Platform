@@ -1,232 +1,295 @@
 import React, { useState } from 'react';
-import ForgotPassword from '../ForgotPassword/ForgotPassword';
+import { useNavigate, Link } from 'react-router-dom';
+import { FaEye, FaEyeSlash, FaCheck, FaTimes, FaUser, FaEnvelope, FaLock } from 'react-icons/fa';
 import './Register.css';
-import { useNavigate } from 'react-router-dom';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 function Register({ setIsLoggedIn }) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
   const [showPassword, setShowPassword] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [fieldError, setFieldError] = useState('');
+  const [passwordErrors, setPasswordErrors] = useState([]);
+  const [success, setSuccess] = useState('');
+  const [showPasswordHints, setShowPasswordHints] = useState(false);
+  
   const navigate = useNavigate();
+
+  // Password validation
+  const validatePassword = (pass) => {
+    const errors = [];
+    if (pass.length < 8) errors.push('At least 8 characters');
+    if (!/[A-Z]/.test(pass)) errors.push('One uppercase letter');
+    if (!/[a-z]/.test(pass)) errors.push('One lowercase letter');
+    if (!/\d/.test(pass)) errors.push('One number');
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(pass)) errors.push('One special character');
+    return errors;
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setError('');
+    setFieldError('');
+    
+    if (name === 'password') {
+      setPasswordErrors(validatePassword(value));
+    }
+  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
+    setFieldError('');
+    setLoading(true);
+
+    const { name, email, password, confirmPassword } = formData;
+
+    console.log('📝 Register attempt:', { name, email });
 
     // Validation
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    if (!name || !email || !password || !confirmPassword) {
+      setError('All fields are required');
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (name.trim().length < 2) {
+      setError('Name must be at least 2 characters');
+      setFieldError('name');
+      setLoading(false);
+      return;
+    }
 
-    // DEBUG: Log registration attempt
-    console.log('🔍 Registration attempt:', { 
-      name, 
-      email, 
-      password: '***',
-      passwordLength: password.length 
-    });
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      setFieldError('email');
+      setLoading(false);
+      return;
+    }
+
+    const errors = validatePassword(password);
+    if (errors.length > 0) {
+      setError('Password does not meet requirements');
+      setFieldError('password');
+      setPasswordErrors(errors);
+      setLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      setFieldError('confirmPassword');
+      setLoading(false);
+      return;
+    }
 
     try {
-      console.log('📡 Sending request to: http://localhost:5000/api/auth/register');
+      console.log('📡 Sending registration request');
       
       const response = await fetch('http://localhost:5000/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name: name.trim(), email, password }),
       });
 
       console.log('📥 Response status:', response.status);
-      console.log('📥 Response status text:', response.statusText);
-      
       const data = await response.json();
-      
-      // DEBUG: Log response data
-      console.log('📥 Response data:', {
-        ...data,
-        token: data.token ? data.token.substring(0, 20) + '...' : 'N/A',
-        user: data.user || 'N/A'
-      });
+      console.log('📥 Response data:', data);
 
-      if (response.ok) {
+      if (data.success) {
         console.log('✅ Registration successful');
+        setSuccess('Registration successful! Please check your email to verify your account.');
         
-        if (data.token) {
-          // CRITICAL FIX: Clear old tokens FIRST, then set new ones
-          console.log('🗑️ Clearing old tokens...');
-          localStorage.removeItem('token');
-          localStorage.removeItem('authToken');
+        // Store tokens
+        if (data.accessToken && data.refreshToken) {
+          localStorage.setItem('accessToken', data.accessToken);
+          localStorage.setItem('refreshToken', data.refreshToken);
           
-          console.log('💾 Saving new token...');
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('authToken', data.token);
-          
-          console.log('✅ Token saved after registration');
-          console.log('🔑 Token preview:', data.token.substring(0, 30) + '...');
-          console.log('🔑 Token length:', data.token.length);
-          
-          // Verify token was saved
-          const savedToken = localStorage.getItem('token');
-          console.log('✅ Token verification:', savedToken ? '✅ Token found in storage' : '❌ Token NOT saved!');
-          
-          if (savedToken) {
-            console.log('✅ Setting isLoggedIn to true');
-            setIsLoggedIn(true);
-            console.log('🔄 Navigating to /Destination');
-            navigate('/Destination');
-          } else {
-            console.error('❌ Token save verification failed!');
-            setError('Failed to save authentication token. Please try again.');
+          if (data.user) {
+            localStorage.setItem('user', JSON.stringify(data.user));
           }
-        } else {
-          console.warn('⚠️ No token received, redirecting to login');
-          setError('Registration successful, but no token received for auto-login.');
-          navigate('/Login');
+          
+          setIsLoggedIn(true);
+          
+          setTimeout(() => {
+            navigate('/Destination');
+          }, 2500);
         }
       } else {
-        console.error('❌ Registration failed with status:', response.status);
-        console.error('❌ Error message:', data.message);
+        console.error('❌ Registration failed:', data.message);
         
-        if (response.status === 400) {
-          if (data.message && data.message.includes('already exists')) {
-            setError('This email is already registered. Please login or use a different email.');
-          } else {
-            setError(data.message || 'Invalid registration data. Please check your inputs.');
-          }
-        } else if (response.status === 500) {
-          setError('Server error occurred. Please try again later.');
+        if (data.errors && Array.isArray(data.errors)) {
+          setError(data.errors.join(', '));
         } else {
           setError(data.message || 'Registration failed. Please try again.');
         }
+        
+        setFieldError(data.field || '');
       }
     } catch (err) {
-      console.error('💥 Registration error occurred');
-      console.error('💥 Error type:', err.name);
-      console.error('💥 Error message:', err.message);
-      console.error('💥 Full error:', err);
-      
-      if (err.message === 'Failed to fetch') {
-        setError('Cannot connect to server. Please ensure the backend is running on http://localhost:5000');
-      } else {
-        setError('An unexpected error occurred. Please try again.');
-      }
+      console.error('💥 Registration error:', err);
+      setError('Cannot connect to server. Please try again.');
     } finally {
       setLoading(false);
-      console.log('🏁 Registration attempt finished');
     }
-  };
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
   };
 
   return (
     <div className="register-container">
-      {showForgotPassword ? (
-        <ForgotPassword onClose={() => setShowForgotPassword(false)} />
-      ) : (
-        <div className="register-card">
-          <form onSubmit={handleRegister}>
-            <h2 className="register-title">Create Account</h2>
-            {error && (
-              <div 
-                className="error-message" 
-                style={{ 
-                  color: 'red', 
-                  padding: '10px', 
-                  marginBottom: '10px', 
-                  border: '1px solid red', 
-                  borderRadius: '4px',
-                  backgroundColor: '#fee'
-                }}
-              >
-                {error}
-              </div>
-            )}
-            
-            <div className="form-group">
-              <label htmlFor="name" className="form-label">Full Name</label>
+      <div className="register-card">
+        <h2 className="register-title">Create Account</h2>
+        <p className="register-subtitle">Join Yoliday and start exploring!</p>
+        
+        {error && (
+          <div className="error-message">
+            <FaTimes /> {error}
+          </div>
+        )}
+        
+        {success && (
+          <div className="success-message">
+            <FaCheck /> {success}
+          </div>
+        )}
+
+        <form onSubmit={handleRegister} className="register-form">
+          {/* Name Field */}
+          <div className="form-group">
+            <label htmlFor="name">Full Name</label>
+            <div className="input-wrapper">
+              <FaUser className="input-icon" />
               <input
                 type="text"
                 id="name"
-                className="form-input"
-                placeholder="Enter your name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                name="name"
+                placeholder="Enter your full name"
+                value={formData.name}
+                onChange={handleInputChange}
                 required
-                disabled={loading}
+                disabled={loading || success}
+                className={fieldError === 'name' ? 'input-error' : ''}
               />
             </div>
+          </div>
 
-            <div className="form-group">
-              <label htmlFor="email" className="form-label">Email Address</label>
+          {/* Email Field */}
+          <div className="form-group">
+            <label htmlFor="email">Email Address</label>
+            <div className="input-wrapper">
+              <FaEnvelope className="input-icon" />
               <input
                 type="email"
                 id="email"
-                className="form-input"
+                name="email"
                 placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formData.email}
+                onChange={handleInputChange}
                 required
-                disabled={loading}
+                disabled={loading || success}
+                className={fieldError === 'email' ? 'input-error' : ''}
               />
             </div>
+          </div>
 
-            <div className="form-group">
-              <label htmlFor="password" className="form-label">Password</label>
-              <div className="password-wrapper">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  className="form-input"
-                  placeholder="Create a password (min 6 characters)"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                  minLength={6}
-                />
-                <button
-                  type="button"
-                  onClick={togglePasswordVisibility}
-                  className="password-toggle"
-                  disabled={loading}
-                >
-                  {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
-                </button>
-              </div>
-            </div>
-
-            <input
-              type="submit"
-              value={loading ? "Creating Account..." : "Get Started"}
-              className="submit-btn"
-              disabled={loading}
-            />
-
-            <div className="form-footer">
+          {/* Password Field */}
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <div className="input-wrapper">
+              <FaLock className="input-icon" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="password"
+                name="password"
+                placeholder="Create a strong password"
+                value={formData.password}
+                onChange={handleInputChange}
+                onFocus={() => setShowPasswordHints(true)}
+                required
+                disabled={loading || success}
+                className={fieldError === 'password' ? 'input-error' : ''}
+              />
               <button
                 type="button"
-                onClick={() => navigate('/Login')}
-                className="link-btn"
-                style={{ fontSize: '0.9rem', color: 'var(--color-text-light)' }}
-                disabled={loading}
+                onClick={() => setShowPassword(!showPassword)}
+                className="password-toggle"
+                disabled={loading || success}
               >
-                Already have an account? <span style={{ color: 'var(--color-primary)', fontWeight: '600' }}>Login Now</span>
+                {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
               </button>
             </div>
-          </form>
-        </div>
-      )}
+          </div>
+          
+          {/* Password Hints */}
+          {showPasswordHints && !success && (
+            <div className="password-hints">
+              <div className="hints-title">Password Requirements:</div>
+              {[
+                { text: 'At least 8 characters', valid: formData.password.length >= 8 },
+                { text: 'One uppercase letter', valid: /[A-Z]/.test(formData.password) },
+                { text: 'One lowercase letter', valid: /[a-z]/.test(formData.password) },
+                { text: 'One number', valid: /\d/.test(formData.password) },
+                { text: 'One special character (!@#$%^&*)', valid: /[!@#$%^&*(),.?":{}|<>]/.test(formData.password) }
+              ].map((req, index) => (
+                <div key={index} className={`hint-item ${req.valid ? 'valid' : ''}`}>
+                  {req.valid ? <FaCheck size={12} /> : <FaTimes size={12} />}
+                  <span>{req.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Confirm Password Field */}
+          <div className="form-group">
+            <label htmlFor="confirmPassword">Confirm Password</label>
+            <div className="input-wrapper">
+              <FaLock className="input-icon" />
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                id="confirmPassword"
+                name="confirmPassword"
+                placeholder="Confirm your password"
+                value={formData.confirmPassword}
+                onChange={handleInputChange}
+                required
+                disabled={loading || success}
+                className={fieldError === 'confirmPassword' ? 'input-error' : ''}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="password-toggle"
+                disabled={loading || success}
+              >
+                {showConfirmPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <button 
+            type="submit" 
+            className="submit-btn"
+            disabled={loading || success}
+          >
+            {loading ? 'Creating Account...' : success ? 'Success!' : 'Create Account'}
+          </button>
+          
+          <div className="form-footer">
+            <span>Already have an account?</span>
+            <Link to="/Login" className="link-btn">Login here</Link>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

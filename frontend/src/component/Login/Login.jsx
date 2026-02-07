@@ -7,19 +7,23 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 function Login({ setIsLoggedIn }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [error, setError] = useState('');
+  const [fieldError, setFieldError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [attemptsLeft, setAttemptsLeft] = useState(null);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setFieldError('');
+    setAttemptsLeft(null);
     setLoading(true);
 
-    // DEBUG: Log login attempt
-    console.log('🔍 Login attempt:', { email, password: '***' });
+    console.log('🔍 Login attempt:', { email, rememberMe });
 
     try {
       console.log('📡 Sending request to: http://localhost:5000/api/auth/login');
@@ -29,83 +33,69 @@ function Login({ setIsLoggedIn }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, rememberMe }),
       });
 
-      // DEBUG: Log response status
       console.log('📥 Response status:', response.status);
-      console.log('📥 Response status text:', response.statusText);
       
-      const responseData = await response.json();
-      
-      // DEBUG: Log response data (hide sensitive token)
+      const data = await response.json();
       console.log('📥 Response data:', {
-        ...responseData,
-        token: responseData.token ? responseData.token.substring(0, 20) + '...' : 'N/A',
-        user: responseData.user || 'N/A'
+        success: data.success,
+        message: data.message,
+        hasToken: !!data.accessToken
       });
 
-      if (response.ok) {
-        console.log('✅ Login response OK');
+      if (data.success) {
+        console.log('✅ Login successful');
         
-        if (responseData.token) {
-          // CRITICAL FIX: Clear old tokens FIRST, then set new ones
-          console.log('🗑️ Clearing old tokens...');
-          localStorage.removeItem('token');
-          localStorage.removeItem('authToken');
-          
-          // Set new tokens
-          console.log('💾 Saving new token...');
-          localStorage.setItem('token', responseData.token);
-          localStorage.setItem('authToken', responseData.token);
-          
-          console.log('✅ Token saved to localStorage');
-          console.log('🔑 Token preview:', responseData.token.substring(0, 30) + '...');
-          console.log('🔑 Token length:', responseData.token.length);
-          
-          // Verify token was saved
-          const savedToken = localStorage.getItem('token');
-          console.log('✅ Token verification:', savedToken ? '✅ Token found in storage' : '❌ Token NOT saved!');
-          
-          if (savedToken) {
-            console.log('✅ Setting isLoggedIn to true');
-            setIsLoggedIn(true);
-            console.log('🔄 Navigating to /Destination');
-            navigate('/Destination');
-          } else {
-            console.error('❌ Token save verification failed!');
-            setError('Failed to save authentication token. Please try again.');
-          }
-        } else {
-          console.error('❌ No token in response');
-          setError('Login successful, but no token received from server.');
+        // Clear old tokens
+        localStorage.removeItem('token');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        
+        // Store new tokens
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+        
+        // Store user info
+        if (data.user) {
+          localStorage.setItem('user', JSON.stringify(data.user));
         }
+        
+        console.log('✅ Tokens saved successfully');
+        
+        setIsLoggedIn(true);
+        navigate('/Destination');
+        
       } else {
-        console.error('❌ Login failed with status:', response.status);
-        console.error('❌ Error message:', responseData.message);
+        console.error('❌ Login failed:', data.message);
         
-        if (response.status === 401) {
-          setError('Invalid email or password. Please try again.');
-        } else if (response.status === 400) {
-          setError(responseData.message || 'Invalid request. Please check your input.');
+        // Handle specific error codes
+        if (data.code === 'NO_TOKEN' || data.code === 'INVALID_TOKEN') {
+          setError('Authentication failed. Please try again.');
+        } else if (data.attemptsLeft !== undefined) {
+          setError(data.message);
+          setAttemptsLeft(data.attemptsLeft);
+        } else if (data.locked) {
+          setError(data.message);
         } else {
-          setError(responseData.message || 'Login failed. Please check your credentials.');
+          setError(data.message || 'Login failed. Please check your credentials.');
         }
+        
+        setFieldError(data.field || '');
       }
+      
     } catch (err) {
-      console.error('💥 Fetch error occurred');
-      console.error('💥 Error type:', err.name);
-      console.error('💥 Error message:', err.message);
-      console.error('💥 Full error:', err);
+      console.error('💥 Login error:', err);
       
       if (err.message === 'Failed to fetch') {
-        setError('Cannot connect to server. Please ensure the backend is running on http://localhost:5000');
+        setError('Cannot connect to server. Please ensure the backend is running.');
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
     } finally {
       setLoading(false);
-      console.log('🏁 Login attempt finished');
     }
   };
 
@@ -121,6 +111,7 @@ function Login({ setIsLoggedIn }) {
         <div className="login-card">
           <form onSubmit={handleLogin}>
             <h2 className="login-title">Welcome Back</h2>
+            
             {error && (
               <div 
                 className="error-message" 
@@ -134,6 +125,11 @@ function Login({ setIsLoggedIn }) {
                 }}
               >
                 {error}
+                {attemptsLeft !== null && attemptsLeft > 0 && (
+                  <div style={{ marginTop: '5px', fontSize: '0.9em' }}>
+                    ⚠️ {attemptsLeft} attempt{attemptsLeft !== 1 ? 's' : ''} remaining
+                  </div>
+                )}
               </div>
             )}
             
@@ -142,12 +138,17 @@ function Login({ setIsLoggedIn }) {
               <input
                 type="email"
                 id="email"
-                className="form-input"
+                className={`form-input ${fieldError === 'email' || fieldError === 'credentials' ? 'input-error' : ''}`}
                 placeholder="Enter your email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError('');
+                  setFieldError('');
+                }}
                 required
                 disabled={loading}
+                autoComplete="email"
               />
             </div>
 
@@ -157,22 +158,41 @@ function Login({ setIsLoggedIn }) {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   id="password"
-                  className="form-input"
+                  className={`form-input ${fieldError === 'password' || fieldError === 'credentials' ? 'input-error' : ''}`}
                   placeholder="Enter your password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError('');
+                    setFieldError('');
+                  }}
                   required
                   disabled={loading}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={togglePasswordVisibility}
                   className="password-toggle"
                   disabled={loading}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
                 </button>
               </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.9rem' }}>
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  disabled={loading}
+                  style={{ marginRight: '8px', cursor: 'pointer' }}
+                />
+                Remember me for 30 days
+              </label>
             </div>
 
             <input

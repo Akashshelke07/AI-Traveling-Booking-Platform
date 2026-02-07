@@ -1,0 +1,35 @@
+# AI Travel Recommendation System
+# ================================
+
+# Python virtual environment
+venv/
+env/
+.venv/
+
+# Model files
+models/*.pkl
+models/*.joblib
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

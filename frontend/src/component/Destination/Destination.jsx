@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaMapMarkerAlt, FaClock, FaRupeeSign, FaStar } from 'react-icons/fa';
 import './Destination.css';
 
 function Destination() {
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
-  const [filter, setFilter] = useState('all');
+  const navigate = useNavigate();
 
   useEffect(() => {
     setIsVisible(true);
@@ -149,9 +150,14 @@ function Destination() {
     },
   ];
 
-  const filteredDestinations = filter === 'all' 
-    ? destinations 
-    : destinations.filter(dest => dest.category === filter);
+  // Handle Book Now click - navigate to booking with destination data
+  const handleBookNow = (destination) => {
+    navigate('/Booking', { 
+      state: { 
+        selectedDestination: destination 
+      } 
+    });
+  };
 
   return (
     <div className="destination-wrapper">
@@ -167,45 +173,9 @@ function Destination() {
         </div>
       </div>
 
-      {/* Filter Section */}
-      <div className="filter-container">
-        <div className="filter-wrapper">
-          <button 
-            className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
-            onClick={() => setFilter('all')}
-          >
-            All Destinations
-          </button>
-          <button 
-            className={`filter-btn ${filter === 'monument' ? 'active' : ''}`}
-            onClick={() => setFilter('monument')}
-          >
-            Monuments
-          </button>
-          <button 
-            className={`filter-btn ${filter === 'nature' ? 'active' : ''}`}
-            onClick={() => setFilter('nature')}
-          >
-            Nature
-          </button>
-          <button 
-            className={`filter-btn ${filter === 'cultural' ? 'active' : ''}`}
-            onClick={() => setFilter('cultural')}
-          >
-            Cultural
-          </button>
-          <button 
-            className={`filter-btn ${filter === 'religious' ? 'active' : ''}`}
-            onClick={() => setFilter('religious')}
-          >
-            Religious
-          </button>
-        </div>
-      </div>
-
       {/* Destinations Grid */}
       <div className={`destinations-container ${isVisible ? 'visible' : ''}`}>
-        {filteredDestinations.map((destination, index) => (
+        {destinations.map((destination, index) => (
           <div
             key={index}
             className={`destination-card ${isVisible ? 'fade-in' : ''}`}
@@ -228,9 +198,6 @@ function Destination() {
                 alt={destination.title}
                 loading="lazy"
               />
-              <div className={`image-overlay ${hoveredIndex === index ? 'active' : ''}`}>
-                <button className="view-details-btn">View Details</button>
-              </div>
             </div>
 
             {/* Card Body */}
@@ -262,20 +229,16 @@ function Destination() {
               </div>
 
               {/* Book Now Button */}
-              <button className="book-now-btn">
+              <button 
+                className="book-now-btn"
+                onClick={() => handleBookNow(destination)}
+              >
                 Book Now
               </button>
             </div>
           </div>
         ))}
       </div>
-
-      {/* Empty State */}
-      {filteredDestinations.length === 0 && (
-        <div className="empty-state">
-          <p>No destinations found in this category.</p>
-        </div>
-      )}
     </div>
   );
 }

@@ -66,12 +66,13 @@ app.get('/', (req, res) => {
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/booking', require('./routes/bookingRoutes'));
 app.use('/api/destinations', require('./routes/destinationRoutes'));
+app.use('/api/newsletter', require('./routes/newsletterRoutes'));
 
 // 404 Handler
 app.use((req, res) => {
     res.status(404).json({ 
         message: `Route ${req.originalUrl} not found`,
-        availableRoutes: ['/api/auth', '/api/booking', '/api/destinations']
+        availableRoutes: ['/api/auth', '/api/booking', '/api/destinations', '/api/newsletter']
     });
 });
 

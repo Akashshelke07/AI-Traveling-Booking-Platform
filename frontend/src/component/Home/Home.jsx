@@ -1,11 +1,53 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom'; 
-import { RiCompassDiscoverFill, RiShieldStarLine, RiMapPinUserLine, RiCustomerService2Line, RiMailSendLine } from "react-icons/ri";
+import { RiCompassDiscoverFill, RiShieldStarLine, RiMapPinUserLine, RiCustomerService2Line, RiMailSendLine, RiCheckLine, RiCloseLine } from "react-icons/ri";
 import { Carousel } from 'react-responsive-carousel';
 import "react-responsive-carousel/lib/styles/carousel.min.css";
 import './Home.css';
 
 function Home() {
+  // Newsletter state
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterLoading, setNewsletterLoading] = useState(false);
+  const [newsletterMessage, setNewsletterMessage] = useState({ type: '', text: '' });
+
+  // Handle newsletter subscription
+  const handleNewsletterSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!newsletterEmail) {
+      setNewsletterMessage({ type: 'error', text: 'Please enter your email address' });
+      return;
+    }
+
+    setNewsletterLoading(true);
+    setNewsletterMessage({ type: '', text: '' });
+
+    try {
+      const response = await fetch('http://localhost:5000/api/newsletter/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: newsletterEmail }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setNewsletterMessage({ type: 'success', text: data.message });
+        setNewsletterEmail('');
+      } else {
+        setNewsletterMessage({ type: 'error', text: data.message || 'Failed to subscribe' });
+      }
+    } catch (error) {
+      console.error('Newsletter error:', error);
+      setNewsletterMessage({ type: 'error', text: 'Network error. Please try again.' });
+    } finally {
+      setNewsletterLoading(false);
+    }
+  };
+
   const features = [
     {
       icon: <RiShieldStarLine size={40} className="feature-icon" />,
@@ -109,11 +151,11 @@ function Home() {
         <div className="hero-overlay">
           <div className="hero-content">
             <h1 className="hero-title animate-fade-in-up">
-              Explore the World, <br />
-              <span className="text-gradient">One Journey at a Time</span>
+              Wander Often, <br />
+              <span className="text-gradient">Wonder Always</span>
             </h1>
             <p className="hero-description animate-fade-in-up delay-1">
-              Welcome to <strong>Yoliday</strong>. Discover breathtaking destinations, from sun-soaked beaches to snow-capped mountains. Your next adventure awaits.
+              Life is short — <strong>travel often</strong>. Unlock hidden gems, chase sunsets, and create memories that last forever. Your next adventure starts here.
             </p>
             <Link to="/Destination">
               <button className="hero-btn animate-fade-in-up delay-2">
@@ -204,14 +246,32 @@ function Home() {
           <RiMailSendLine size={50} className="newsletter-icon" />
           <h2>Subscribe to our Newsletter</h2>
           <p>Get the latest travel deals and updates directly to your inbox.</p>
-          <form className="newsletter-form" onSubmit={(e) => e.preventDefault()}>
+          
+          {/* Success/Error Message */}
+          {newsletterMessage.text && (
+            <div className={`newsletter-message ${newsletterMessage.type}`}>
+              {newsletterMessage.type === 'success' ? (
+                <RiCheckLine size={20} />
+              ) : (
+                <RiCloseLine size={20} />
+              )}
+              <span>{newsletterMessage.text}</span>
+            </div>
+          )}
+          
+          <form className="newsletter-form" onSubmit={handleNewsletterSubmit}>
             <input 
               type="email" 
               placeholder="Enter your email address" 
               required
               aria-label="Email address"
+              value={newsletterEmail}
+              onChange={(e) => setNewsletterEmail(e.target.value)}
+              disabled={newsletterLoading}
             />
-            <button type="submit">Subscribe</button>
+            <button type="submit" disabled={newsletterLoading}>
+              {newsletterLoading ? 'Subscribing...' : 'Subscribe'}
+            </button>
           </form>
         </div>
       </section>

@@ -6,6 +6,7 @@ function ForgotPassword({ onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [cooldownTime, setCooldownTime] = useState(0);
 
   const handleForgotPassword = async (e) => {
     e.preventDefault();
@@ -44,22 +45,41 @@ function ForgotPassword({ onClose }) {
       const data = await response.json();
       console.log('📥 Response data:', data);
 
-      if (response.ok) {
+      if (data.success) {
         console.log('✅ Password reset request successful');
         setSuccess(data.message || 'Password reset link has been sent to your email.');
         setEmail('');
         
-        // Auto-close after 3 seconds
+        // Auto-close after 5 seconds
         setTimeout(() => {
           onClose();
-        }, 3000);
+        }, 5000);
       } else {
         console.error('❌ Password reset failed:', data.message);
-        setError(data.message || 'Failed to send reset link. Please try again.');
+        
+        // Handle rate limiting
+        if (response.status === 429) {
+          setError(data.message || 'Too many requests. Please wait before trying again.');
+          // Start cooldown timer if provided
+          if (data.retryAfter) {
+            setCooldownTime(data.retryAfter);
+            const timer = setInterval(() => {
+              setCooldownTime(prev => {
+                if (prev <= 1) {
+                  clearInterval(timer);
+                  return 0;
+                }
+                return prev - 1;
+              });
+            }, 1000);
+          }
+        } else {
+          setError(data.message || 'Failed to send reset link. Please try again.');
+        }
       }
     } catch (err) {
       console.error('💥 Forgot password error:', err);
-      setError('Cannot connect to server. Please ensure the backend is running on http://localhost:5000');
+      setError('Cannot connect to server. Please try again later.');
     } finally {
       setLoading(false);
       console.log('🏁 Forgot password attempt finished');
@@ -87,6 +107,11 @@ function ForgotPassword({ onClose }) {
             }}
           >
             ❌ {error}
+            {cooldownTime > 0 && (
+              <div style={{ marginTop: '5px', fontSize: '0.9em' }}>
+                ⏳ Retry in {cooldownTime} second{cooldownTime !== 1 ? 's' : ''}
+              </div>
+            )}
           </div>
         )}
         
@@ -103,6 +128,9 @@ function ForgotPassword({ onClose }) {
             }}
           >
             ✅ {success}
+            <div style={{ marginTop: '5px', fontSize: '0.9em' }}>
+              📧 Please check your email (including spam folder)
+            </div>
           </div>
         )}
 
@@ -113,14 +141,21 @@ function ForgotPassword({ onClose }) {
             id="forgot-email"
             placeholder="Enter your email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setError('');
+            }}
             required
-            disabled={loading}
+            disabled={loading || success || cooldownTime > 0}
           />
           <input 
             type="submit" 
-            value={loading ? "Sending..." : "Send Reset Link"} 
-            disabled={loading}
+            value={
+              loading ? "Sending..." : 
+              cooldownTime > 0 ? `Wait ${cooldownTime}s` :
+              "Send Reset Link"
+            } 
+            disabled={loading || success || cooldownTime > 0}
           />
           <button 
             type="button" 
@@ -128,9 +163,27 @@ function ForgotPassword({ onClose }) {
             className="cancel-button"
             disabled={loading}
           >
-            Cancel
+            {success ? 'Close' : 'Cancel'}
           </button>
         </form>
+        
+        {success && (
+          <div style={{ 
+            marginTop: '15px', 
+            padding: '10px', 
+            backgroundColor: '#f0f9ff',
+            borderRadius: '4px',
+            fontSize: '0.85rem',
+            color: '#0369a1'
+          }}>
+            <strong>Next Steps:</strong>
+            <ol style={{ marginTop: '8px', paddingLeft: '20px', marginBottom: 0 }}>
+              <li>Check your email inbox</li>
+              <li>Click the reset link (expires in 1 hour)</li>
+              <li>Create your new password</li>
+            </ol>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,0 +1,161 @@
+/* ========================================
+   🦶 FOOTER - MODERN DARK GRADIENT
+   ======================================== */
+
+.footer {
+    background: linear-gradient(180deg, var(--bg-dark) 0%, #0c1322 100%);
+    color: var(--text-muted);
+    padding: 4rem 0 2rem;
+    margin-top: auto;
+    position: relative;
+    z-index: 10;
+}
+
+.footer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(59, 130, 246, 0.3) 50%,
+            transparent 100%);
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: var(--container-width);
+    margin: 0 auto;
+    padding: 0 2rem;
+    flex-wrap: wrap;
+    gap: 2rem;
+}
+
+/* Brand */
+.footer-brand h3 {
+    font-family: var(--font-heading);
+    font-size: 2rem;
+    font-weight: 800;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+}
+
+.footer-brand p {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    opacity: 0.8;
+}
+
+/* Links */
+.footer-links {
+    display: flex;
+    gap: 2rem;
+}
+
+.footer-link {
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: var(--transition-base);
+    position: relative;
+}
+
+.footer-link:hover {
+    color: var(--text-light);
+}
+
+.footer-link::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 2px;
+    bottom: -4px;
+    left: 0;
+    background: var(--gradient-primary);
+    transition: width 0.3s var(--ease-smooth);
+    border-radius: 2px;
+}
+
+.footer-link:hover::after {
+    width: 100%;
+}
+
+/* Bottom Section */
+.footer-bottom {
+    text-align: center;
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    opacity: 0.6;
+}
+
+/* ========================================
+   📱 RESPONSIVE
+   ======================================== */
+@media (max-width: 768px) {
+    .footer {
+        padding: 3rem 0 1.5rem;
+    }
+
+    .footer-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 1.5rem;
+        padding: 0 1.5rem;
+    }
+
+    .footer-brand h3 {
+        font-size: 1.75rem;
+    }
+
+    .footer-links {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .footer-link::after {
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .footer-bottom {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .footer {
+        padding: 2.5rem 0 1rem;
+    }
+
+    .footer-content {
+        padding: 0 1rem;
+    }
+
+    .footer-brand h3 {
+        font-size: 1.5rem;
+    }
+
+    .footer-brand p {
+        font-size: 0.9rem;
+    }
+
+    .footer-link {
+        font-size: 0.9rem;
+    }
+
+    .footer-bottom {
+        font-size: 0.8rem;
+    }
+}

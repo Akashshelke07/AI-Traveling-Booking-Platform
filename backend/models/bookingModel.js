@@ -36,12 +36,21 @@ const bookingSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
-    // Optional: Reference to the User model (if you're associating the booking with a user)
+    status: {
+        type: String,
+        enum: ['pending', 'confirmed', 'cancelled', 'completed'],
+        default: 'confirmed'
+    },
+    // Reference to the User model
     user: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User' // Reference to the User model
+        ref: 'User',
+        required: true
     }
-}, { timestamps: true }); // Adds createdAt and updatedAt fields automatically
+}, { timestamps: true });
+
+// Compound index to help with duplicate checking
+bookingSchema.index({ user: 1, destination: 1, status: 1 });
 
 // Create the model
 module.exports = mongoose.model('Booking', bookingSchema);

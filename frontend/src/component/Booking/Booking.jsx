@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import "./Booking.css";
 import destinationsData from './data/destinationsData.json';
+import { authenticatedFetch } from '../../utils/authUtils';
 
 function Booking() {
+  const location = useLocation();
+  
   const [fullname, setfullname] = useState('');
   const [contact, setcontact] = useState('');
   const [email, setemail] = useState('');
@@ -14,7 +18,6 @@ function Booking() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  // Validation state for real-time feedback
   const [validationErrors, setValidationErrors] = useState({
     fullname: '',
     contact: '',
@@ -26,109 +29,76 @@ function Booking() {
 
   const allDestinations = destinationsData;
 
+  // Auto-fill destination from navigation state
+  useEffect(() => {
+    if (location.state?.selectedDestination) {
+      const selectedDest = location.state.selectedDestination;
+      // Find matching destination in our data or use the passed one
+      const matchedDest = allDestinations.find(
+        d => d.title.toLowerCase() === selectedDest.title.toLowerCase()
+      );
+      if (matchedDest) {
+        setdestination(matchedDest);
+      } else {
+        // Use the passed destination data directly
+        setdestination({
+          title: selectedDest.title,
+          price: selectedDest.price
+        });
+      }
+    }
+  }, [location.state, allDestinations]);
+
   // Validation Functions
   const validateFullName = (name) => {
-    if (!name.trim()) {
-      return 'Full name is required';
-    }
-    if (name.trim().length < 3) {
-      return 'Name must be at least 3 characters long';
-    }
-    if (name.trim().length > 50) {
-      return 'Name must be less than 50 characters';
-    }
-    if (!/^[a-zA-Z\s]+$/.test(name)) {
-      return 'Name can only contain letters and spaces';
-    }
+    if (!name.trim()) return 'Full name is required';
+    if (name.trim().length < 3) return 'Name must be at least 3 characters long';
+    if (name.trim().length > 50) return 'Name must be less than 50 characters';
+    if (!/^[a-zA-Z\s]+$/.test(name)) return 'Name can only contain letters and spaces';
     return '';
   };
 
   const validateContact = (phone) => {
-    if (!phone.trim()) {
-      return 'Contact number is required';
-    }
-    // Remove all spaces and special characters for validation
+    if (!phone.trim()) return 'Contact number is required';
     const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
-    
-    // Check if it contains only digits
-    if (!/^\d+$/.test(cleanPhone)) {
-      return 'Contact number can only contain digits';
-    }
-    
-    // Check length (exactly 10 digits)
-    if (cleanPhone.length !== 10) {
-      return 'Contact number must be exactly 10 digits';
-    }
-    
-    // Check if it starts with valid digits (Indian numbers start with 6-9)
-    if (!/^[6-9]/.test(cleanPhone)) {
-      return 'Contact number must start with 6, 7, 8, or 9';
-    }
-    
+    if (!/^\d+$/.test(cleanPhone)) return 'Contact number can only contain digits';
+    if (cleanPhone.length !== 10) return 'Contact number must be exactly 10 digits';
+    if (!/^[6-9]/.test(cleanPhone)) return 'Contact number must start with 6, 7, 8, or 9';
     return '';
   };
 
   const validateEmail = (email) => {
-    if (!email.trim()) {
-      return 'Email is required';
-    }
-    // Comprehensive email regex
+    if (!email.trim()) return 'Email is required';
     const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(email)) {
-      return 'Please enter a valid email address (e.g., user@example.com)';
-    }
-    if (email.length > 100) {
-      return 'Email must be less than 100 characters';
-    }
+    if (!emailRegex.test(email)) return 'Please enter a valid email address (e.g., user@example.com)';
+    if (email.length > 100) return 'Email must be less than 100 characters';
     return '';
   };
 
   const validateDestination = (dest, customDest) => {
-    if (!dest && !customDest.trim()) {
-      return 'Please select or enter a destination';
-    }
-    if (customDest.trim() && customDest.trim().length < 3) {
-      return 'Custom destination must be at least 3 characters';
-    }
-    if (customDest.trim() && customDest.trim().length > 100) {
-      return 'Custom destination must be less than 100 characters';
-    }
+    if (!dest && !customDest.trim()) return 'Please select or enter a destination';
+    if (customDest.trim() && customDest.trim().length < 3) return 'Custom destination must be at least 3 characters';
+    if (customDest.trim() && customDest.trim().length > 100) return 'Custom destination must be less than 100 characters';
     return '';
   };
 
   const validateCustomPrice = (price, isCustomDest) => {
     if (isCustomDest) {
-      if (price === '') {
-        return 'Price is required for custom destination';
-      }
+      if (price === '') return 'Price is required for custom destination';
       const numPrice = parseFloat(price);
-      if (isNaN(numPrice)) {
-        return 'Price must be a valid number';
-      }
-      if (numPrice < 0) {
-        return 'Price cannot be negative';
-      }
-      if (numPrice === 0) {
-        return 'Price must be greater than 0';
-      }
-      if (numPrice > 1000000) {
-        return 'Price seems too high (max: ₹10,00,000)';
-      }
+      if (isNaN(numPrice)) return 'Price must be a valid number';
+      if (numPrice < 0) return 'Price cannot be negative';
+      if (numPrice === 0) return 'Price must be greater than 0';
+      if (numPrice > 1000000) return 'Price seems too high (max: ₹10,00,000)';
     }
     return '';
   };
 
   const validateDays = (days) => {
     const numDays = parseInt(days);
-    if (isNaN(numDays)) {
-      return 'Number of days must be a valid number';
-    }
-    if (numDays < 1) {
-      return 'Number of days must be at least 1';
-    }
-    if (numDays > 365) {
-      return 'Number of days cannot exceed 365';
-    }
+    if (isNaN(numDays)) return 'Number of days must be a valid number';
+    if (numDays < 1) return 'Number of days must be at least 1';
+    if (numDays > 365) return 'Number of days cannot exceed 365';
     return '';
   };
 
@@ -143,7 +113,6 @@ function Booking() {
 
   const handleContactChange = (e) => {
     const value = e.target.value;
-    // Allow only digits and limit to 10 characters
     if (value === '' || /^\d{0,10}$/.test(value)) {
       setcontact(value);
       const error = validateContact(value);
@@ -184,7 +153,6 @@ function Booking() {
 
   const handleCustomPriceChange = (e) => {
     const value = e.target.value;
-    // Allow empty string or valid positive numbers (including decimals)
     if (value === '' || /^\d*\.?\d*$/.test(value)) {
       setCustomPrice(value);
       const error = validateCustomPrice(value, customDestination.trim() !== '');
@@ -207,13 +175,6 @@ function Booking() {
     setSuccess(false);
 
     console.log('🔍 Booking attempt started');
-    console.log('📋 Form data:', {
-      fullname,
-      contact,
-      email,
-      destination: destination?.title || customDestination,
-      days
-    });
 
     // Comprehensive Validation
     const errors = {
@@ -227,7 +188,6 @@ function Booking() {
 
     setValidationErrors(errors);
 
-    // Check if any validation errors exist
     const hasErrors = Object.values(errors).some(error => error !== '');
     
     if (hasErrors) {
@@ -238,22 +198,6 @@ function Booking() {
     }
 
     console.log('✅ All validations passed');
-
-    // CRITICAL: Check for authentication token
-    const token = localStorage.getItem('token');
-    console.log('🔑 Checking for authentication token...');
-    console.log('🔑 Token exists:', !!token);
-    
-    if (!token) {
-      console.error('❌ NO TOKEN FOUND IN LOCALSTORAGE!');
-      console.error('❌ User needs to login first');
-      console.error('❌ Available localStorage keys:', Object.keys(localStorage));
-      setError('No token found, please log in.');
-      return;
-    }
-    
-    console.log('🔑 Token preview:', token.substring(0, 30) + '...');
-    console.log('🔑 Token length:', token.length);
 
     setLoading(true);
 
@@ -281,36 +225,25 @@ function Booking() {
     console.log('📦 Booking data prepared:', bookingData);
 
     try {
-      console.log('📡 Sending POST request to: http://localhost:5000/api/booking/bookings');
-      console.log('📡 Request headers:', {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token.substring(0, 20)}...`
-      });
+      console.log('📡 Sending POST request with authenticated fetch');
       
-      const response = await fetch('http://localhost:5000/api/booking/bookings', {
+      // Use authenticatedFetch which handles token refresh automatically
+      const response = await authenticatedFetch('http://localhost:5000/api/booking/bookings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(bookingData),
       });
 
       console.log('📥 Response received');
       console.log('📥 Response status:', response.status);
-      console.log('📥 Response status text:', response.statusText);
-      console.log('📥 Response ok:', response.ok);
       
       const data = await response.json();
       console.log('📥 Response data:', data);
 
       if (response.ok) {
         console.log('✅ BOOKING SUCCESSFUL!');
-        console.log('✅ Booking details:', {
-          id: data.booking?._id || 'N/A',
-          destination: data.booking?.destination || currentDestinationTitle,
-          totalCost: data.booking?.totalCost || totalCost
-        });
         
         setSuccess(true);
         
@@ -337,16 +270,18 @@ function Booking() {
         console.error('❌ Booking failed with status:', response.status);
         console.error('❌ Error details:', data);
         
-        if (response.status === 401) {
-          console.error('❌ AUTHENTICATION ERROR - Token might be invalid or expired');
-          console.error('❌ Token used:', token.substring(0, 30) + '...');
-          setError('Authentication failed. Your session may have expired. Please login again.');
+        // Handle specific error codes
+        if (data.code === 'EMAIL_NOT_VERIFIED') {
+          setError('Please verify your email address before making bookings. Check your inbox for the verification link.');
+        } else if (response.status === 401) {
+          setError('Your session has expired. Please login again.');
+          // Redirect to login after 2 seconds
+          setTimeout(() => {
+            window.location.href = '/Login';
+          }, 2000);
         } else if (response.status === 400) {
-          console.error('❌ BAD REQUEST - Check booking data');
-          console.error('❌ Sent data:', bookingData);
           setError(data.message || 'Invalid booking data. Please check your inputs.');
         } else if (response.status === 500) {
-          console.error('❌ SERVER ERROR');
           setError('Server error occurred. Please try again later.');
         } else {
           setError(data.message || 'Booking failed. Please check your details.');
@@ -357,21 +292,18 @@ function Booking() {
       console.error('💥 Error type:', error.name);
       console.error('💥 Error message:', error.message);
       console.error('💥 Full error:', error);
-      console.error('💥 Error stack:', error.stack);
       
       if (error.message === 'Failed to fetch') {
-        console.error('💥 BACKEND NOT REACHABLE');
-        console.error('💥 Possible causes:');
-        console.error('   1. Backend server not running');
-        console.error('   2. Backend crashed');
-        console.error('   3. Wrong port (should be 5000)');
-        console.error('   4. CORS issue');
-        setError('Cannot connect to server. Please ensure backend is running on http://localhost:5000');
+        setError('Cannot connect to server. Please ensure backend is running.');
+      } else if (error.message === 'No access token available') {
+        setError('You are not logged in. Redirecting to login page...');
+        setTimeout(() => {
+          window.location.href = '/Login';
+        }, 2000);
       } else if (error.name === 'TypeError') {
-        console.error('💥 TYPE ERROR - Possibly network or parsing issue');
         setError('Network error occurred. Please check your connection and try again.');
       } else {
-        setError('Something went wrong while connecting to the server. Please try again.');
+        setError('Something went wrong. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -393,9 +325,7 @@ function Booking() {
     <div className="booking-page">
       <div className="booking-container glass-panel">
         <form onSubmit={sendData} className="booking-form">
-          <h2 className="booking-title">
-            Book Your Trip
-          </h2>
+          <h2 className="booking-title">Book Your Trip</h2>
 
           {/* Full Name Field */}
           <div className="form-group">
@@ -410,9 +340,7 @@ function Booking() {
               maxLength={50}
             />
             {validationErrors.fullname && (
-              <div className="field-error">
-                {validationErrors.fullname}
-              </div>
+              <div className="field-error">{validationErrors.fullname}</div>
             )}
           </div>
 
@@ -430,9 +358,7 @@ function Booking() {
               pattern="[6-9]\d{9}"
             />
             {validationErrors.contact && (
-              <div className="field-error">
-                {validationErrors.contact}
-              </div>
+              <div className="field-error">{validationErrors.contact}</div>
             )}
           </div>
 
@@ -449,9 +375,7 @@ function Booking() {
               maxLength={100}
             />
             {validationErrors.email && (
-              <div className="field-error">
-                {validationErrors.email}
-              </div>
+              <div className="field-error">{validationErrors.email}</div>
             )}
           </div>
 
@@ -493,9 +417,7 @@ function Booking() {
               maxLength={100}
             />
             {validationErrors.destination && (
-              <div className="field-error">
-                {validationErrors.destination}
-              </div>
+              <div className="field-error">{validationErrors.destination}</div>
             )}
           </div>
 
@@ -515,9 +437,7 @@ function Booking() {
                 step="0.01"
               />
               {validationErrors.customPrice && (
-                <div className="field-error">
-                  {validationErrors.customPrice}
-                </div>
+                <div className="field-error">{validationErrors.customPrice}</div>
               )}
             </div>
           )}
@@ -535,36 +455,26 @@ function Booking() {
               required
             />
             {validationErrors.days && (
-              <div className="field-error">
-                {validationErrors.days}
-              </div>
+              <div className="field-error">{validationErrors.days}</div>
             )}
           </div>
 
           {/* Price Summary */}
           <div className="price-summary">
-            <h3>
-              Total: ₹{displayTotalCost.toLocaleString('en-IN')}
-            </h3>
+            <h3>Total: ₹{displayTotalCost.toLocaleString('en-IN')}</h3>
             {displayTotalCost > 0 && (
-              <p>
-                ({days} day{parseInt(days) > 1 ? 's' : ''} × ₹{currentPriceForDisplay.toLocaleString('en-IN')})
-              </p>
+              <p>({days} day{parseInt(days) > 1 ? 's' : ''} × ₹{currentPriceForDisplay.toLocaleString('en-IN')})</p>
             )}
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="error-message">
-              ❌ {error}
-            </div>
+            <div className="error-message">❌ {error}</div>
           )}
           
           {/* Success Message */}
           {success && (
-            <div className="success-message">
-              ✅ Booking Confirmed!
-            </div>
+            <div className="success-message">✅ Booking Confirmed!</div>
           )}
 
           {/* Submit Button */}
@@ -572,9 +482,7 @@ function Booking() {
             {loading ? 'Processing...' : 'Confirm Booking'}
           </button>
 
-          <div className="required-note">
-            * All fields are required
-          </div>
+          <div className="required-note">* All fields are required</div>
         </form>
       </div>
     </div>
