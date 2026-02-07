@@ -64,8 +64,4 @@ Travel-Booking-main/
 3.  **Frontend Setup**:
     - Follow instructions in [frontend/README.md](./frontend/README.md) to launch the web interface.
 
----
 
-## 📬 Contact & Support
-
-For any inquiries or internship project details, please contact the development team.
